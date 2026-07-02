@@ -39,48 +39,38 @@
 html, body {
   height: 100%;
   background:
-    radial-gradient(1200px 600px at 50% -10%, #142b28 0%, transparent 60%),
+    radial-gradient(900px 500px at 50% -5%, #10231f 0%, transparent 55%),
     var(--bg);
   color: var(--text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
+body { display: flex; justify-content: center; }
 
-/* --- Moldura de "celular" para visualizar o app dentro do site --- */
-.device-frame {
+/* App em coluna centralizada (full-width no mobile, coluna elegante no desktop) */
+.app-shell {
   position: relative;
-  width: 390px;
-  height: 800px;
-  max-height: calc(100vh - 40px);
-  background: var(--bg);
-  border: 10px solid #05080b;
-  border-radius: 44px;
-  box-shadow: var(--shadow), 0 0 0 1px #1d2731;
-  overflow: hidden;
+  width: 100%;
+  max-width: 460px;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  background:
+    radial-gradient(700px 400px at 50% -8%, rgba(34,211,154,.10), transparent 60%),
+    var(--bg);
+  overflow: hidden;
 }
-.device-notch {
-  position: absolute;
-  top: 0; left: 50%; transform: translateX(-50%);
-  width: 140px; height: 26px;
-  background: #05080b;
-  border-radius: 0 0 16px 16px;
-  z-index: 20;
+/* No desktop, delimita a coluna com uma leve borda/sombra */
+@media (min-width: 480px) {
+  .app-shell { border-left: 1px solid var(--line); border-right: 1px solid var(--line); box-shadow: 0 0 80px rgba(0,0,0,.5); }
 }
 
 .app-screen {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 44px 18px 90px;
+  padding: max(22px, env(safe-area-inset-top)) 18px 92px;
   scrollbar-width: none;
 }
 .app-screen::-webkit-scrollbar { display: none; }
@@ -630,7 +620,7 @@ body {
 }
 .player-head {
   display: flex; align-items: center; gap: 12px;
-  padding: 44px 16px 12px;
+  padding: max(18px, env(safe-area-inset-top)) 16px 12px;
   border-bottom: 1px solid var(--line);
 }
 .p-close, .p-swap {
@@ -921,3 +911,112 @@ body {
 .ach-medal svg { width: 22px; height: 22px; }
 .ach-nome { font-size: 12px; font-weight: 700; line-height: 1.2; }
 .ach-desc { font-size: 10px; color: var(--text-mut); margin-top: 3px; line-height: 1.3; }
+
+/* ==========================================================================
+   Autenticação
+   ========================================================================== */
+.auth {
+  min-height: 100%;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 24px 22px calc(24px + env(safe-area-inset-bottom));
+  max-width: 400px; margin: 0 auto; width: 100%;
+}
+.auth-brand { text-align: center; margin-bottom: 26px; }
+.auth-logo {
+  width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 18px;
+  background: linear-gradient(180deg, var(--brand), var(--brand-2));
+  display: grid; place-items: center; color: #06231b;
+  box-shadow: 0 10px 30px rgba(34,211,154,.3);
+}
+.auth-logo svg { width: 34px; height: 34px; }
+.auth-brand h1 { font-size: 28px; font-weight: 800; }
+.auth-brand p { color: var(--text-dim); font-size: 14px; margin-top: 4px; }
+
+.google-btn {
+  background: #fff; color: #1f2937; font-weight: 600;
+  border: 1px solid #dadce0;
+}
+.google-btn:hover { filter: brightness(.98); }
+.google-btn .g-ico { display: inline-flex; }
+
+.auth-sep { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-mut); }
+.auth-sep::before, .auth-sep::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.auth-sep span { font-size: 12px; white-space: nowrap; }
+
+.auth-form .field { margin-bottom: 14px; }
+.auth-err { color: var(--danger); font-size: 13px; margin: -4px 0 12px; font-weight: 600; }
+.auth-toggle { text-align: center; margin-top: 18px; color: var(--text-dim); font-size: 14px; }
+.auth-toggle a { color: var(--brand); font-weight: 700; cursor: pointer; }
+.auth-note { text-align: center; color: var(--text-mut); font-size: 12px; margin-top: 18px; }
+
+/* Conta no Perfil */
+.profile-account { margin: 4px 0 16px; }
+.pa-info { display: flex; align-items: center; gap: 12px; }
+.pa-avatar {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: var(--surface-2); border: 1px solid var(--line);
+  display: grid; place-items: center; color: var(--brand);
+}
+.pa-avatar svg { width: 24px; height: 24px; }
+.pa-name { font-weight: 700; font-size: 16px; }
+.pa-mail { color: var(--text-mut); font-size: 13px; }
+
+/* ==========================================================================
+   Onboarding — inputs grandes (telas de "Sobre você")
+   ========================================================================== */
+.big-input {
+  display: flex; align-items: baseline; justify-content: center; gap: 8px;
+  margin-top: 20px;
+}
+.input.xl {
+  width: 100%; max-width: 180px;
+  font-size: 44px; font-weight: 800; text-align: center;
+  background: transparent; border: none; border-bottom: 2px solid var(--line);
+  border-radius: 0; padding: 10px 4px; color: var(--text);
+}
+.input.xl:focus { border-color: var(--brand); }
+.xl-unit { font-size: 20px; font-weight: 700; color: var(--text-dim); }
+.input.xl-text {
+  font-size: 26px; font-weight: 700; text-align: center;
+  padding: 16px; margin-top: 18px;
+}
+.onb-hint { color: var(--warn); font-size: 13px; text-align: center; margin-top: 14px; font-weight: 600; }
+
+/* ==========================================================================
+   Player — hero (foto do equipamento) + demonstração inline
+   ========================================================================== */
+.p-hero {
+  position: relative;
+  height: 220px; border-radius: 18px; overflow: hidden;
+  display: grid; place-items: center;
+}
+.p-hero-ico svg { width: 76px; height: 76px; opacity: .9; }
+.p-hero-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; background: #0e141b;
+}
+.p-hero-grp {
+  position: absolute; top: 12px; left: 12px; z-index: 2;
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  background: rgba(5,8,11,.7); backdrop-filter: blur(6px);
+  padding: 5px 10px; border-radius: 999px;
+}
+.p-title { font-size: 23px; font-weight: 800; line-height: 1.2; margin: 16px 0 4px; }
+
+/* Demonstração animada (gif) dentro do "Como executar" */
+.p-demo-inline { margin-bottom: 14px; }
+.p-demo-frame {
+  position: relative; height: 170px; border-radius: 14px; overflow: hidden;
+  background: #0e141b; border: 1px solid var(--line);
+}
+.p-demo-img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.p-demo-tag {
+  position: absolute; bottom: 10px; left: 10px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(5,8,11,.72); backdrop-filter: blur(6px);
+  color: var(--text); font-size: 11px; font-weight: 700;
+  padding: 5px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em;
+}
+.p-demo-tag svg { width: 12px; height: 12px; color: var(--brand); }

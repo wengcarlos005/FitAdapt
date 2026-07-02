@@ -123,18 +123,14 @@ const Player = (() => {
       </div>
 
       <div class="player-scroll">
-        <!-- Foto do exercício: crossfade entre as 2 posições (sem piscar) -->
-        <div class="p-foto" style="background:linear-gradient(135deg, ${hexA(cor,.35)}, ${hexA(cor,.08)})">
-          <div class="p-foto-ico" style="color:${cor}">${Icons.forGroup(ex.grupo)}</div>
-          ${media ? `<img class="p-foto-img" src="${media[0]}" alt="${ex.nome}" onerror="this.remove()">` : ''}
-          ${media && media.length > 1 ? `<img class="p-foto-img p-foto-b" id="pFotoB" src="${media[1]}" alt="" aria-hidden="true">` : ''}
-          <button class="p-demo" id="pDemo">${Icons.svg('play')} Ver demonstração</button>
+        <!-- Foto principal do equipamento/exercício (estática) -->
+        <div class="p-hero" style="background:linear-gradient(135deg, ${hexA(cor,.35)}, ${hexA(cor,.08)})">
+          <div class="p-hero-ico" style="color:${cor}">${Icons.forGroup(ex.grupo)}</div>
+          ${media ? `<img class="p-hero-img" src="${media[0]}" alt="${ex.nome}" onerror="this.remove()">` : ''}
+          <span class="p-hero-grp" style="color:${cor}">${grp.label}</span>
         </div>
 
-        <div class="p-title-row">
-          <h2 class="p-title">${ex.nome}</h2>
-          <span class="ex-grp" style="color:${cor}">${grp.label}</span>
-        </div>
+        <h2 class="p-title">${ex.nome}</h2>
 
         <!-- Prescrição em pílulas -->
         ${isCardio ? `
@@ -146,8 +142,16 @@ const Player = (() => {
             <div class="stat-pill"><b>${it.descanso}s</b><span>Descanso</span></div>
           </div>`}
 
-        <!-- Passo a passo -->
+        <!-- Passo a passo com a demonstração animada (gif) ao lado -->
         <div class="section-title">Como executar</div>
+        ${media && media.length > 1 ? `
+        <div class="p-demo-inline">
+          <div class="p-demo-frame">
+            <img class="p-demo-img" src="${media[0]}" alt="">
+            <img class="p-demo-img p-foto-b" id="pFotoB" src="${media[1]}" alt="" aria-hidden="true">
+            <span class="p-demo-tag">${Icons.svg('play')} demonstração</span>
+          </div>
+        </div>` : ''}
         <ol class="p-steps">
           ${ex.instr.map(s => `<li>${s}</li>`).join('')}
         </ol>
@@ -187,7 +191,6 @@ const Player = (() => {
       if (confirm('Sair do treino? O progresso desta sessão será perdido.')) close();
     });
     overlay.querySelector('#pSwap').addEventListener('click', () => openSwapInPlayer(it.exId));
-    overlay.querySelector('#pDemo').addEventListener('click', () => showDemo(ex, media));
     overlay.querySelector('#pNext').addEventListener('click', () => nextEx(ultimo));
 
     // Séries: ao concluir, dispara descanso

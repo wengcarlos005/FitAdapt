@@ -1,64 +1,54 @@
 /* ==========================================================================
-   FitAdapt — Camada de dados (localStorage)
-   Passo 1: só o esqueleto. Cresce a cada passo (perfil, ficha, logs...).
+   FitAdapt — Camada de dados (localStorage), por usuário
+   Cada conta guarda seu próprio progresso em fitadapt.v1.<email>.
    ========================================================================== */
 
 const Store = (() => {
-  const KEY = 'fitadapt.v1';
+  let userKey = null; // e-mail do usuário logado
 
-  // Estado padrão. Nos próximos passos preenchemos profile/plan/logs.
-  const defaultState = {
+  const defaultState = () => ({
     onboarded: false,
     user: { nome: 'Atleta' },
-    profile: null,     // { peso, altura, idade, nivel, objetivo, dias, tempo, equipamentos }
-    plan: null,        // ficha semanal gerada pelo algoritmo
-    substitutions: {}, // { exId_original: exId_substituto } — trocas persistentes
-    planCursor: 0,     // índice do próximo treino do rodízio
-    logs: [],          // registros de carga por exercício
-    feedbacks: [],     // avaliações pós-treino (sessões concluídas)
+    profile: null,
+    plan: null,
+    substitutions: {},
+    planCursor: 0,
+    logs: [],
+    feedbacks: [],
     streak: 0,
-  };
+  });
 
-  let state = load();
+  let state = defaultState();
+
+  const keyFor = u => 'fitadapt.v1.' + (u || '_anon');
 
   function load() {
     try {
-      const raw = localStorage.getItem(KEY);
-      return raw ? { ...defaultState, ...JSON.parse(raw) } : { ...defaultState };
+      const raw = localStorage.getItem(keyFor(userKey));
+      return raw ? { ...defaultState(), ...JSON.parse(raw) } : defaultState();
     } catch {
-      return { ...defaultState };
+      return defaultState();
     }
   }
-
   function save() {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    if (userKey == null) return;
+    localStorage.setItem(keyFor(userKey), JSON.stringify(state));
   }
 
   return {
+    // Define o usuário atual e carrega o estado dele
+    setUser(u) { userKey = u; state = load(); return state; },
+    currentUser: () => userKey,
+
     get: () => state,
     set(patch) { state = { ...state, ...patch }; save(); return state; },
-    reset() { state = { ...defaultState, substitutions: {} }; save(); return state; },
+    reset() { state = defaultState(); save(); return state; },
 
-    // Substituições de exercício (persistentes)
-    setSub(origId, novoId) {
-      state.substitutions = { ...state.substitutions, [origId]: novoId };
-      save();
-    },
-    clearSub(origId) {
-      const s = { ...state.substitutions };
-      delete s[origId];
-      state.substitutions = s;
-      save();
-    },
-    // Resolve o exercício efetivo (aplica substituição, se houver)
+    setSub(origId, novoId) { state.substitutions = { ...state.substitutions, [origId]: novoId }; save(); },
+    clearSub(origId) { const s = { ...state.substitutions }; delete s[origId]; state.substitutions = s; save(); },
     resolve(origId) { return state.substitutions[origId] || origId; },
 
-    // Avança o rodízio de treinos (dia concluído -> próximo)
-    advanceCursor(total) {
-      state.planCursor = total ? ((state.planCursor + 1) % total) : 0;
-      save();
-      return state.planCursor;
-    },
+    advanceCursor(total) { state.planCursor = total ? ((state.planCursor + 1) % total) : 0; save(); return state.planCursor; },
     addFeedback(fb) { state.feedbacks = state.feedbacks.concat(fb); save(); },
   };
 })();

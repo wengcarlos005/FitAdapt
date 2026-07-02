@@ -450,13 +450,24 @@ const App = (() => {
         <p style="color:var(--text-dim);font-size:14px;line-height:1.5">${equipNomes}</p>
       </div>
 
+      <div class="profile-account">
+        <div class="pa-info">
+          <div class="pa-avatar">${Icons.svg('person')}</div>
+          <div><div class="pa-name">${Auth.currentName() || s.user.nome}</div><div class="pa-mail">${Auth.currentUser() || ''}</div></div>
+        </div>
+      </div>
       <button class="btn secondary" id="resetBtn">Refazer onboarding</button>
+      <button class="btn ghost" id="logoutBtn" style="margin-top:10px">Sair da conta</button>
     `;
     wrap.querySelector('#resetBtn').addEventListener('click', () => {
       if (confirm('Isso apaga seu perfil e recomeça o onboarding. Continuar?')) {
         Store.reset();
-        boot();
+        afterLogin();
       }
+    });
+    wrap.querySelector('#logoutBtn').addEventListener('click', () => {
+      Auth.logout();
+      boot();
     });
     return wrap;
   }
@@ -488,9 +499,19 @@ const App = (() => {
 
   /* --------------------------- Bootstrap -------------------------- */
   function boot() {
+    tabbar.hidden = true;
+    if (!Auth.session()) {
+      Auth.start(afterLogin);          // não logado -> tela de login/cadastro
+    } else {
+      afterLogin();
+    }
+  }
+
+  function afterLogin() {
+    Store.setUser(Auth.session());     // carrega o progresso do usuário
     if (!Store.get().onboarded) {
       tabbar.hidden = true;
-      Onboarding.start(() => go('home'));
+      Onboarding.start(() => { ensurePlan(); go('home'); });
     } else {
       ensurePlan();
       go('home');
