@@ -132,7 +132,8 @@ const App = (() => {
 
     let html = `
       <div class="greeting">
-        <div><h1>Sua ficha</h1><p>${s.plan.split} · ${s.plan.dias.length} treinos/semana</p></div>
+        <div><h1>Sua ficha</h1><p>${s.plan.split} · Semana ${s.plan.semana || 1}</p></div>
+        <button class="vary-btn" id="varyBtn" title="Gerar novos exercícios">${Icons.svg('repeat')} Variar</button>
       </div>
     `;
 
@@ -158,6 +159,18 @@ const App = (() => {
     });
 
     wrap.innerHTML = html;
+
+    // Variar treinos (nova seleção de exercícios)
+    wrap.querySelector('#varyBtn').addEventListener('click', () => {
+      if (s.session && !confirm('Você tem um treino em andamento. Gerar novos exercícios vai descartá-lo. Continuar?')) return;
+      const pl = s.plan;
+      Store.set({
+        plan: Algo.generate(s.profile, pl.semana || 1, (pl.variante || 0) + 1),
+        substitutions: {},
+        session: null,
+      });
+      go('plan');
+    });
 
     // Liga os botões de troca
     wrap.querySelectorAll('.ex-swap').forEach(btn =>

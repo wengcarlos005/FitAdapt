@@ -50,39 +50,61 @@ const Algo = (() => {
     return ex.equip.every(e => equipamentos.includes(e));
   }
 
-  /* Candidatos para um grupo muscular */
-  function candidatos(grupo, profile, usados) {
+  /* Pontuação de adequação de um exercício ao PERFIL (objetivo, idade, nível) */
+  function scoreExercicio(ex, profile) {
+    let s = 0;
+    // Compostos: mais valorizados p/ ganho de massa e perda de peso (gasto/estímulo)
+    if (ex.tipo === 'composto') s += profile.objetivo === 'condicionamento' ? 1.5 : 2.5;
+    // Perda de peso: também valoriza cardio/funcional
+    if (profile.objetivo === 'perda_peso' && (ex.tipo === 'cardio' || ex.grupo === 'core')) s += 1;
+    // Idade avançada: prioriza exercícios mais fáceis/seguros
+    if (profile.idade >= 50) s += (3 - ex.nivel) * 1.2;
+    else if (profile.nivel === 'avancado') s += ex.nivel * 0.3; // avançado tolera mais dificuldade
+    // Iniciantes: máquinas são mais seguras/fáceis de aprender
+    if (profile.nivel === 'iniciante' && ex.equip.includes('maquinas')) s += 1.2;
+    // Avançado: peso livre (barra) é priorizado
+    if (profile.nivel === 'avancado' && ex.equip.includes('barra')) s += 0.8;
+    return s;
+  }
+
+  /* Candidatos para um grupo muscular, ordenados por adequação ao perfil */
+  function candidatos(grupo, profile) {
     const max = nivelMax(profile.nivel);
     return EXERCISES
       .filter(ex => ex.grupo === grupo)
       .filter(ex => disponivel(ex, profile.equipamentos))
       .filter(ex => ex.nivel <= max)
-      .sort((a, b) => {
-        // 1) ainda não usados vêm primeiro (variedade)
-        const ua = usados.has(a.id) ? 1 : 0;
-        const ub = usados.has(b.id) ? 1 : 0;
-        if (ua !== ub) return ua - ub;
-        // 2) compostos antes de isolados
-        const ca = a.tipo === 'composto' ? 0 : 1;
-        const cb = b.tipo === 'composto' ? 0 : 1;
-        return ca - cb;
-      });
+      .sort((a, b) => scoreExercicio(b, profile) - scoreExercicio(a, profile));
   }
 
-  /* Gera a ficha semanal completa */
-  function generate(profile) {
+  /* Gera a ficha semanal completa.
+     `semana` (periodização) e `variante` (botão "variar") deslocam a rotação
+     -> trazem exercícios diferentes mantendo a estrutura adequada ao perfil. */
+  function generate(profile, semana = 1, variante = 0) {
     const params = OBJ_PARAMS[profile.objetivo] || OBJ_PARAMS.condicionamento;
     const split = montarSplit(profile.dias, profile.nivel);
     const usados = new Set();
+    let giGlobal = 0; // posição global do grupo (varia a escolha entre dias)
+    const rot = (semana - 1) + variante;
 
     const dias = split.map((key, i) => {
       const tpl = TEMPLATES[key];
       const exercicios = [];
 
       tpl.grupos.forEach(grupo => {
-        const cand = candidatos(grupo, profile, usados);
+        const cand = candidatos(grupo, profile);
         if (!cand.length) return; // sem equipamento p/ esse grupo → pula
-        const ex = cand[0];
+
+        // Rotação: índice que muda por semana/variante e posição,
+        // pulando os já usados nesta ficha (variedade dentro e entre semanas).
+        const base = rot + giGlobal;
+        giGlobal++;
+        let ex = null;
+        for (let k = 0; k < cand.length; k++) {
+          const c = cand[(base + k) % cand.length];
+          if (!usados.has(c.id)) { ex = c; break; }
+        }
+        if (!ex) ex = cand[base % cand.length]; // pool pequeno: pode repetir
         usados.add(ex.id);
 
         const isCore = grupo === 'core';
@@ -91,15 +113,17 @@ const Algo = (() => {
           series: isCore ? 3 : params.series,
           reps: ex.repsFixo || params.reps,
           descanso: isCore ? 45 : params.descanso,
-          carga: null, // sugestão de carga entra no Passo 6 (sobrecarga progressiva)
+          carga: null,
         });
       });
 
       // Finalizador de cardio para perda de peso / condicionamento
       if (params.cardioFinal) {
-        const cardio = EXERCISES
-          .filter(e => e.grupo === 'cardio' && disponivel(e, profile.equipamentos))[0];
-        if (cardio) exercicios.push({ exId: cardio.id, series: 1, reps: cardio.repsFixo, descanso: 0, carga: null });
+        const cardios = EXERCISES.filter(e => e.grupo === 'cardio' && disponivel(e, profile.equipamentos));
+        if (cardios.length) {
+          const cardio = cardios[(rot + i) % cardios.length]; // varia o cardio também
+          exercicios.push({ exId: cardio.id, series: 1, reps: cardio.repsFixo, descanso: 0, carga: null });
+        }
       }
 
       return {
@@ -112,7 +136,8 @@ const Algo = (() => {
 
     return {
       criadoEm: new Date().toISOString(),
-      semana: 1,
+      semana,
+      variante,
       split: descreverSplit(profile.dias, profile.nivel),
       dias,
     };

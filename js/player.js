@@ -440,10 +440,10 @@ const Player = (() => {
         exercicios: nExec,
       });
       const nc = Store.advanceCursor(total); // avança o rodízio p/ o próximo dia
-      if (nc === 0) { // completou um ciclo -> nova semana (periodização/deload)
+      if (nc === 0) { // completou um ciclo -> nova semana: regenera com exercícios variados
         const pl = Store.get().plan;
-        pl.semana = (pl.semana || 1) + 1;
-        Store.set({ plan: pl });
+        const novaSemana = (pl.semana || 1) + 1;
+        Store.set({ plan: Algo.generate(Store.get().profile, novaSemana, pl.variante || 0), substitutions: {} });
       }
     };
 
