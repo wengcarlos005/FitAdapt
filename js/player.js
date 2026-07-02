@@ -15,18 +15,30 @@ const Player = (() => {
   let overlay = null;
   let restInt = null;
   let fotoInt = null;
-  let inicio = 0;      // timestamp de início da sessão
-  let sessaoLogs = []; // registros desta sessão (p/ resumo/volume)
+  let inicio = 0;         // timestamp de início da sessão
+  let sessaoLogs = [];    // registros desta sessão (p/ resumo/volume)
+  let completed = new Set(); // índices de exercícios concluídos
 
   function start(diaObj, diaIndex, exitCb) {
     dia = diaObj;
     diaIdx = diaIndex || 0;
-    idx = 0;
     onExit = exitCb;
-    inicio = Date.now();
-    sessaoLogs = [];
+    const sess = Store.get().session;
+    if (sess && sess.diaIdx === diaIdx) {      // retomar treino salvo
+      idx = Math.min(sess.idx || 0, totalEx() - 1);
+      sessaoLogs = sess.logs || [];
+      completed = new Set(sess.done || []);
+      inicio = sess.inicio || Date.now();
+    } else {
+      idx = 0; sessaoLogs = []; completed = new Set(); inicio = Date.now();
+    }
     tabbar.hidden = true;
     renderEx();
+  }
+
+  // Salva o andamento para poder retomar depois
+  function persistSession() {
+    Store.set({ session: { diaIdx, idx, logs: sessaoLogs, done: [...completed], inicio } });
   }
 
   function close() {
@@ -88,7 +100,7 @@ const Player = (() => {
         <div class="log-cardio">
           <div class="log-label">Duração alvo: <b>${ex.repsFixo}</b></div>
           <div class="field"><label>Duração realizada (min)</label>
-            <input class="input" id="cardioMin" type="number" inputmode="numeric" placeholder="${repsBase(ex.repsFixo)}"></div>
+            <input class="input" id="cardioMin" type="number" inputmode="numeric" value="${repsBase(ex.repsFixo)}"></div>
         </div>`;
     } else {
       let rows = '';
@@ -188,7 +200,8 @@ const Player = (() => {
     }
 
     overlay.querySelector('#pClose').addEventListener('click', () => {
-      if (confirm('Sair do treino? O progresso desta sessão será perdido.')) close();
+      persistSession();   // guarda o andamento para retomar depois
+      close();
     });
     overlay.querySelector('#pSwap').addEventListener('click', () => openSwapInPlayer(it.exId));
     overlay.querySelector('#pNext').addEventListener('click', () => nextEx(ultimo));
@@ -322,6 +335,8 @@ const Player = (() => {
   /* ------------------------------ Navegação ------------------------------- */
   function nextEx(ultimo) {
     salvarRegistro();
+    completed.add(idx);
+    persistSession();
     if (ultimo) { finish(); return; }
     overlay.remove();
     idx++;
@@ -365,7 +380,7 @@ const Player = (() => {
 
     const dur = Math.max(1, Math.round((Date.now() - inicio) / 60000));
     const vol = volumeSessao();
-    const nExec = sessaoLogs.length;
+    const nExec = completed.size;
     const total = dia && Store.get().plan ? Store.get().plan.dias.length : 1;
     const proxIdx = total ? (diaIdx + 1) % total : 0;
     const proxDia = Store.get().plan.dias[proxIdx];
@@ -377,7 +392,7 @@ const Player = (() => {
     overlay.innerHTML = `
       <div class="feedback">
         <div class="done-check">${Icons.svg('check')}</div>
-        <h2>Treino concluído!</h2>
+        <h2>Dia concluído!</h2>
         <p class="fb-day">${dia.foco}</p>
 
         <div class="fb-stats">
@@ -394,8 +409,8 @@ const Player = (() => {
         </div>
 
         <div class="fb-actions">
-          <button class="btn" id="fbNext">Próximo: ${proxDia.foco} ${Icons.svg('chevron')}</button>
-          <button class="btn secondary" id="fbHome">Voltar ao início</button>
+          <button class="btn" id="fbHome">Concluir</button>
+          <button class="btn secondary" id="fbNext">Iniciar próximo: ${proxDia.foco} ${Icons.svg('chevron')}</button>
         </div>
       </div>`;
     host.appendChild(overlay);
@@ -408,7 +423,7 @@ const Player = (() => {
 
     const salvar = () => {
       const s = Store.get();
-      Store.set({ streak: (s.streak || 0) + 1 });
+      Store.set({ streak: (s.streak || 0) + 1, session: null }); // dia concluído -> limpa andamento
       Store.addFeedback({
         data: new Date().toISOString(),
         dia: dia.foco,

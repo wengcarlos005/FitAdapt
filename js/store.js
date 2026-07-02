@@ -16,6 +16,7 @@ const Store = (() => {
     logs: [],
     feedbacks: [],
     streak: 0,
+    session: null,     // treino em andamento (para retomar depois)
   });
 
   let state = defaultState();

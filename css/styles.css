@@ -780,9 +780,12 @@ body { display: flex; justify-content: center; }
 .demo-box p { font-size: 15px; margin-bottom: 8px; }
 .demo-box small { color: var(--text-mut); font-size: 12px; }
 
-/* Dia "próximo" na Ficha */
+/* Dia "próximo" / "em andamento" na Ficha */
 .day-block.is-next .d-title { color: var(--brand); }
 .day-block.is-next { position: relative; }
+.day-block.is-active .d-title,
+.day-block.is-active .day-num { color: var(--accent); }
+.day-block.is-active .day-start { background: linear-gradient(180deg, var(--accent), #e8611f); }
 
 /* ==========================================================================
    Feedback pós-treino (Passo 5)

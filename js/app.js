@@ -56,29 +56,32 @@ const App = (() => {
     const hoje = s.plan.dias[cursor]; // próximo treino do rodízio
     const semana = (s.plan.semana || 1);
     const deload = semana % 4 === 0;
+    const feitos = treinosNaSemana();                         // treinos concluídos nesta semana
+    const pct = Math.min(100, Math.round((feitos / p.dias) * 100));
+    const emAndamento = s.session && s.session.diaIdx === cursor; // retomar?
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <div class="greeting">
         <div>
-          <h1>Olá, ${s.user.nome}</h1>
+          <h1>${saudacao()}, ${s.user.nome}</h1>
           <p>Objetivo: ${obj.label}</p>
         </div>
-        <div class="streak-badge">${Icons.svg('flame')} ${s.streak}</div>
+        <div class="streak-badge" title="Dias de treino seguidos">${Icons.svg('flame')} ${s.streak}</div>
       </div>
 
       ${deload ? `<div class="deload-banner">${Icons.svg('repeat')} Semana de recuperação (deload) — cargas reduzidas para recuperar.</div>` : ''}
 
       <div class="hero">
-        <div class="eyebrow">Treino de hoje · Semana ${semana}</div>
+        <div class="eyebrow">${emAndamento ? 'Em andamento' : 'Treino de hoje'} · Semana ${semana}</div>
         <h2>${hoje.foco}</h2>
         <div class="meta"><b>${hoje.exercicios.length}</b> exercícios · <b>${hoje.tempoEstimado}</b> min</div>
-        <button class="btn" id="startBtn">${Icons.svg('play')} Começar treino</button>
+        <button class="btn" id="startBtn">${Icons.svg('play')} ${emAndamento ? 'Continuar treino' : 'Começar treino'}</button>
       </div>
 
       <div class="section-title">Progresso semanal</div>
       <div class="card">
-        <div class="progressbar"><span style="width:0%"></span></div>
-        <p style="color:var(--text-dim);font-size:13px;margin-top:10px">0 de ${p.dias} treinos concluídos nesta semana</p>
+        <div class="progressbar"><span style="width:${pct}%"></span></div>
+        <p style="color:var(--text-dim);font-size:13px;margin-top:10px">${feitos} de ${p.dias} treinos concluídos nesta semana</p>
       </div>
 
       <div class="section-title">Sua semana · ${s.plan.split}</div>
@@ -95,10 +98,30 @@ const App = (() => {
         <div class="stat"><div class="k">IMC</div><div class="v">${imc(p)}</div></div>
       </div>
     `;
-    wrap.querySelector('#startBtn').addEventListener('click', () =>
-      startWorkout(hoje, cursor, () => go('home')));
+    wrap.querySelector('#startBtn').addEventListener('click', () => {
+      if (emAndamento) Player.start(hoje, cursor, () => go('home'));   // retoma direto
+      else startWorkout(hoje, cursor, () => go('home'));               // pergunta o tempo
+    });
     wrap.querySelector('#goPlan').addEventListener('click', () => go('plan'));
     return wrap;
+  }
+
+  function saudacao() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
+  }
+
+  /* Nº de treinos concluídos na semana atual (segunda a domingo) */
+  function treinosNaSemana() {
+    const fbs = Store.get().feedbacks || [];
+    const hoje = new Date();
+    const dia = (hoje.getDay() + 6) % 7;            // 0 = segunda
+    const inicioSemana = new Date(hoje);
+    inicioSemana.setHours(0, 0, 0, 0);
+    inicioSemana.setDate(inicioSemana.getDate() - dia);
+    return fbs.filter(f => new Date(f.data) >= inicioSemana).length;
   }
 
   /* ---------------------------- Ficha --------------------------- */
@@ -114,13 +137,16 @@ const App = (() => {
     `;
 
     const cursor = (s.planCursor || 0) % s.plan.dias.length;
+    const sessIdx = s.session ? s.session.diaIdx : -1;
     s.plan.dias.forEach((dia, i) => {
       const proximo = i === cursor;
+      const andamento = i === sessIdx;
+      const marca = andamento ? ' · em andamento' : (proximo ? ' · próximo' : '');
       html += `
-        <div class="day-block ${proximo ? 'is-next' : ''}">
+        <div class="day-block ${andamento ? 'is-active' : proximo ? 'is-next' : ''}">
           <div class="day-head">
             <div>
-              <span class="day-num">Dia ${i + 1}${proximo ? ' · próximo' : ''}</span>
+              <span class="day-num">Dia ${i + 1}${marca}</span>
               <div class="d-title">${dia.foco}</div>
               <div class="d-sub">${dia.exercicios.length} ex · ${dia.tempoEstimado} min</div>
             </div>
@@ -136,11 +162,12 @@ const App = (() => {
     // Liga os botões de troca
     wrap.querySelectorAll('.ex-swap').forEach(btn =>
       btn.addEventListener('click', () => openSwapSheet(btn.dataset.orig)));
-    // Iniciar treino a partir de um dia
+    // Iniciar/retomar treino a partir de um dia
     wrap.querySelectorAll('.day-start').forEach(btn =>
       btn.addEventListener('click', () => {
         const i = +btn.dataset.dia;
-        startWorkout(s.plan.dias[i], i, () => go('plan'));
+        if (i === sessIdx) Player.start(s.plan.dias[i], i, () => go('plan'));  // retomar
+        else startWorkout(s.plan.dias[i], i, () => go('plan'));
       }));
 
     return wrap;
