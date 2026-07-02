@@ -56,6 +56,13 @@ const Player = (() => {
   function usaCarga(ex) {
     return ex.equip.some(e => ['halteres','barra','maquinas','polia','kettlebell'].includes(e));
   }
+  /* Equipamento "principal" do exercício (o mais característico) */
+  const EQ_PRIORITY = ['maquinas','polia','barra_fixa','barra','kettlebell','halteres','cardio','banco','elastico','peso_corporal'];
+  function equipPrincipal(ex) {
+    for (const e of EQ_PRIORITY) if (ex.equip.includes(e)) return e;
+    return ex.equip[0];
+  }
+  function nomeEquip(id) { return (EQUIPMENT.find(e => e.id === id) || {}).nome || ''; }
   function repsBase(reps) {
     const m = String(reps).match(/\d+/);
     return m ? m[0] : '';
@@ -135,11 +142,11 @@ const Player = (() => {
       </div>
 
       <div class="player-scroll">
-        <!-- Foto principal do equipamento/exercício (estática) -->
-        <div class="p-hero" style="background:linear-gradient(135deg, ${hexA(cor,.35)}, ${hexA(cor,.08)})">
-          <div class="p-hero-ico" style="color:${cor}">${Icons.forGroup(ex.grupo)}</div>
-          ${media ? `<img class="p-hero-img" src="${media[0]}" alt="${ex.nome}" onerror="this.remove()">` : ''}
-          <span class="p-hero-grp" style="color:${cor}">${grp.label}</span>
+        <!-- Topo: equipamento usado no exercício -->
+        <div class="p-hero" style="background:linear-gradient(135deg, ${hexA(cor,.9)}, ${hexA(cor,.55)})">
+          <div class="p-hero-equip">${Icons.equip(equipPrincipal(ex))}</div>
+          <span class="p-hero-eqname">${nomeEquip(equipPrincipal(ex))}</span>
+          <span class="p-hero-grp">${grp.label}</span>
         </div>
 
         <h2 class="p-title">${ex.nome}</h2>
