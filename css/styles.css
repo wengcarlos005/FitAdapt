@@ -240,10 +240,11 @@ body {
   cursor: pointer;
   font-family: inherit;
 }
-.tab-ico { font-size: 20px; filter: grayscale(1) opacity(.7); transition: .15s; }
+.tab-ico { display: grid; place-items: center; transition: .15s; }
+.tab-ico svg { width: 22px; height: 22px; }
 .tab-label { font-size: 11px; font-weight: 600; }
 .tab.active { color: var(--brand); }
-.tab.active .tab-ico { filter: none; transform: translateY(-1px); }
+.tab.active .tab-ico { transform: translateY(-1px); }
 
 /* Animação de entrada das telas */
 .fade-in { animation: fade .25s ease both; }
@@ -303,13 +304,14 @@ body {
   background: rgba(34,211,154,.08);
 }
 .option .ico {
-  font-size: 28px;
   width: 48px; height: 48px;
   display: grid; place-items: center;
   background: var(--surface-2);
   border-radius: 12px;
   flex-shrink: 0;
+  color: var(--brand);
 }
+.option .ico svg { width: 24px; height: 24px; }
 .option .txt { flex: 1; }
 .option .txt b { display: block; font-size: 16px; font-weight: 700; }
 .option .txt span { color: var(--text-dim); font-size: 13px; }
@@ -318,11 +320,11 @@ body {
   border-radius: 50%;
   border: 2px solid var(--line);
   display: grid; place-items: center;
-  color: #06231b;
-  font-size: 13px;
+  color: transparent;
   flex-shrink: 0;
 }
-.option.selected .check { background: var(--brand); border-color: var(--brand); }
+.option .check svg { width: 13px; height: 13px; }
+.option.selected .check { background: var(--brand); border-color: var(--brand); color: #06231b; }
 
 /* Inputs de texto/número */
 .field { margin-bottom: 16px; }
@@ -383,8 +385,12 @@ body {
   transition: .15s;
   font-size: 14px; font-weight: 600;
 }
-.equip .e-ico { font-size: 20px; }
+.equip .e-ico { display: grid; place-items: center; color: var(--text-dim); flex-shrink: 0; }
+.equip .e-ico svg { width: 20px; height: 20px; }
 .equip.selected { border-color: var(--brand); background: rgba(34,211,154,.08); }
+.equip.selected .e-ico { color: var(--brand); }
+.equip-custom { margin-top: 16px; }
+.equip-hint { color: var(--text-mut); font-size: 12px; margin-top: 12px; }
 
 /* Rodapé de navegação do onboarding */
 .onb-footer {
@@ -404,6 +410,12 @@ body {
   height: 100%; gap: 16px;
 }
 .welcome .big { font-size: 64px; }
+.welcome-check {
+  width: 88px; height: 88px; border-radius: 50%;
+  background: rgba(34,211,154,.12); border: 2px solid var(--brand);
+  display: grid; place-items: center; color: var(--brand);
+}
+.welcome-check svg { width: 44px; height: 44px; }
 .welcome h2 { font-size: 26px; font-weight: 800; }
 .welcome p { color: var(--text-dim); max-width: 260px; }
 
@@ -803,30 +815,18 @@ body {
 .fb-stat b { display: block; font-size: 22px; font-weight: 800; }
 .fb-stat span { font-size: 11px; color: var(--text-mut); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 
+.fb-rate-label { font-size: 14px; color: var(--text-dim); font-weight: 600; margin-bottom: 10px; }
 .fb-rate { display: flex; gap: 8px; width: 100%; }
 .fb-opt {
   flex: 1; border: 2px solid var(--line); background: var(--surface);
-  border-radius: 14px; padding: 14px 4px; cursor: pointer;
-  display: flex; flex-direction: column; gap: 2px; transition: .15s;
-  color: var(--text);
+  border-radius: 14px; padding: 15px 4px; cursor: pointer; transition: .15s;
+  color: var(--text); font: 700 15px 'Inter', sans-serif;
 }
-.fb-opt b { font-size: 15px; font-weight: 700; }
-.fb-opt span { font-size: 11px; color: var(--text-mut); }
 .fb-opt.facil.on    { border-color: var(--goal-mass); background: rgba(108,140,255,.12); }
 .fb-opt.perfeito.on { border-color: var(--brand); background: rgba(34,211,154,.12); }
 .fb-opt.dificil.on  { border-color: var(--accent); background: rgba(255,122,69,.12); }
-.fb-hint { font-size: 12px; color: var(--text-mut); margin: 12px 0 0; max-width: 280px; }
 
-.fb-next {
-  width: 100%; margin: 22px 0 16px;
-  background: var(--surface-2); border: 1px solid var(--line);
-  border-radius: 14px; padding: 14px 16px; text-align: left;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.fb-next-label { font-size: 11px; color: var(--text-mut); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-.fb-next-day { font-size: 17px; font-weight: 800; }
-
-.fb-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+.fb-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 28px; }
 
 /* ==========================================================================
    Progresso (Passo 5)

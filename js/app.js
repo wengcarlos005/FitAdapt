@@ -324,32 +324,35 @@ const App = (() => {
       ? barChart(volSessoes.map(f => ({ v: f.volume, l: f.dia.split(' ')[0].slice(0,3) })))
       : `<p class="mut-note">Registre cargas nos treinos para ver o volume por sessão.</p>`;
 
-    // Evolução de carga por exercício (agrupa logs, pega carga máxima por sessão)
+    // Evolução por exercício: carga (kg) quando há peso, senão repetições
     const porEx = {};
     logs.forEach(r => {
       const maxCarga = Math.max(0, ...r.sets.map(x => x.carga || 0));
-      if (maxCarga > 0) (porEx[r.exId] = porEx[r.exId] || []).push({ v: maxCarga, data: r.data });
+      const maxReps = Math.max(0, ...r.sets.map(x => x.reps || 0));
+      const usaKg = maxCarga > 0;
+      const v = usaKg ? maxCarga : maxReps;
+      if (v > 0) (porEx[r.exId] = porEx[r.exId] || { unit: usaKg ? 'kg' : 'reps', pts: [] }).pts.push(v);
     });
-    const exComDados = Object.keys(porEx).filter(k => porEx[k].length >= 1);
+    const exComDados = Object.keys(porEx);
     let cargaHTML;
     if (exComDados.length) {
       cargaHTML = exComDados.map(exId => {
         const ex = Algo.byId(exId);
-        const serie = porEx[exId].slice(-8);
-        const ult = serie[serie.length - 1].v;
-        const prim = serie[0].v;
-        const delta = ult - prim;
+        const u = porEx[exId].unit;
+        const serie = porEx[exId].pts.slice(-8);
+        const ult = serie[serie.length - 1];
+        const delta = ult - serie[0];
         return `
           <div class="prog-ex">
             <div class="prog-ex-head">
               <span>${ex ? ex.nome : exId}</span>
-              <b>${ult} kg ${delta > 0 ? `<i class="up">▲ ${delta}</i>` : delta < 0 ? `<i class="down">▼ ${-delta}</i>` : ''}</b>
+              <b>${ult} ${u} ${delta > 0 ? `<i class="up">▲ ${delta}</i>` : delta < 0 ? `<i class="down">▼ ${-delta}</i>` : ''}</b>
             </div>
-            ${sparkline(serie.map(p => p.v))}
+            ${sparkline(serie)}
           </div>`;
       }).join('');
     } else {
-      cargaHTML = `<p class="mut-note">Registre o peso (kg) das séries no player para acompanhar a evolução de carga.</p>`;
+      cargaHTML = `<p class="mut-note">Conclua um treino para ver sua evolução aqui.</p>`;
     }
 
     wrap.innerHTML = `
@@ -358,7 +361,7 @@ const App = (() => {
       <div class="section-title">Consistência (7 dias)</div>
       <div class="card"><div class="cd-row">${dots}</div></div>
 
-      <div class="section-title">Evolução de carga</div>
+      <div class="section-title">Evolução por exercício</div>
       <div class="card">${cargaHTML}</div>
 
       <div class="section-title">Volume por treino</div>
@@ -383,7 +386,7 @@ const App = (() => {
 
   /* Sparkline SVG simples (linha) */
   function sparkline(vals) {
-    if (vals.length < 2) return `<div class="spark-single">${vals[0]} kg</div>`;
+    if (vals.length < 2) return `<div class="spark-single">1ª sessão registrada</div>`;
     const w = 280, h = 46, pad = 4;
     const min = Math.min(...vals), max = Math.max(...vals);
     const rng = max - min || 1;

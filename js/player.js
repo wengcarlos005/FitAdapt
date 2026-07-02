@@ -97,7 +97,7 @@ const Player = (() => {
           <div class="set-row" data-set="${i}">
             <div class="set-n">${i}</div>
             <div class="set-in">
-              <input class="input mini reps" type="number" inputmode="numeric" placeholder="${repsBase(it.reps)}">
+              <input class="input mini reps" type="number" inputmode="numeric" value="${repsBase(it.reps)}">
               <span class="set-u">reps</span>
             </div>
             ${carga ? `<div class="set-in">
@@ -383,21 +383,15 @@ const Player = (() => {
           <div class="fb-stat"><b>${vol > 0 ? vol.toLocaleString('pt-BR') : '—'}</b><span>kg volume</span></div>
         </div>
 
-        <div class="section-title" style="text-align:center">Como foi o treino?</div>
+        <div class="fb-rate-label">Como foi o treino?</div>
         <div class="fb-rate" id="fbRate">
-          <button class="fb-opt facil" data-r="facil"><b>Fácil</b><span>demais</span></button>
-          <button class="fb-opt perfeito" data-r="perfeito"><b>Perfeito</b><span>na medida</span></button>
-          <button class="fb-opt dificil" data-r="dificil"><b>Difícil</b><span>demais</span></button>
-        </div>
-        <p class="fb-hint">Sua resposta ajusta a carga da próxima semana (sobrecarga progressiva — Passo 6).</p>
-
-        <div class="fb-next">
-          <div class="fb-next-label">Próximo treino</div>
-          <div class="fb-next-day">${proxDia.foco}</div>
+          <button class="fb-opt facil" data-r="facil"><b>Fácil</b></button>
+          <button class="fb-opt perfeito" data-r="perfeito"><b>Perfeito</b></button>
+          <button class="fb-opt dificil" data-r="dificil"><b>Difícil</b></button>
         </div>
 
         <div class="fb-actions">
-          <button class="btn" id="fbNext">Iniciar próximo treino ${Icons.svg('chevron')}</button>
+          <button class="btn" id="fbNext">Próximo: ${proxDia.foco} ${Icons.svg('chevron')}</button>
           <button class="btn secondary" id="fbHome">Voltar ao início</button>
         </div>
       </div>`;
