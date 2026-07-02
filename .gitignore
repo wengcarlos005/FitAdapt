@@ -1,0 +1,7 @@
+# Configuração local do ambiente de dev (não precisa no deploy)
+.claude/
+
+# Sistema
+Thumbs.db
+.DS_Store
+*.log
