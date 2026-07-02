@@ -14,7 +14,7 @@ const Onboarding = (() => {
 
   let draft = {
     nome: '', sexo: '', idade: null, peso: null, altura: null,
-    objetivo: '', nivel: '', dias: null, tempo: null,
+    objetivo: '', foco: [], nivel: '', dias: null, tempo: null,
     local: '', equipamentos: ['peso_corporal'],
   };
 
@@ -24,7 +24,7 @@ const Onboarding = (() => {
     livre:    ['peso_corporal'],
   };
 
-  const steps = [stepObjetivo, stepNome, stepSexo, stepIdade, stepPeso, stepAltura, stepNivel, stepRotina, stepLocal, stepWelcome];
+  const steps = [stepObjetivo, stepFoco, stepNome, stepSexo, stepIdade, stepPeso, stepAltura, stepNivel, stepRotina, stepLocal, stepWelcome];
   const N_DOTS = steps.length - 1;
 
   function start(cb) {
@@ -128,7 +128,34 @@ const Onboarding = (() => {
     ], 'objetivo');
   }
 
-  /* ------- 1: Nome ------- */
+  /* ------- 1: Foco (áreas a priorizar) ------- */
+  function stepFoco() {
+    const areas = [
+      { v:'pernas',  t:'Pernas e glúteos' },
+      { v:'bracos',  t:'Braços' },
+      { v:'peito',   t:'Peito' },
+      { v:'costas',  t:'Costas' },
+      { v:'ombros',  t:'Ombros' },
+      { v:'abdomen', t:'Abdômen' },
+    ];
+    const c = document.createElement('div');
+    c.innerHTML = `
+      <div class="onb-q">O que você quer priorizar?</div>
+      <div class="onb-sub">Damos volume extra nessas áreas. Escolha uma ou mais — ou nenhuma.</div>
+      <div class="chips foco-chips">
+        ${areas.map(a => `<div class="chip big ${draft.foco.includes(a.v) ? 'selected' : ''}" data-foco="${a.v}">${a.t}</div>`).join('')}
+      </div>
+      <p class="equip-hint">Sem seleção = treino equilibrado (corpo todo).</p>`;
+    c.querySelectorAll('[data-foco]').forEach(ch => ch.addEventListener('click', () => {
+      const v = ch.dataset.foco;
+      if (draft.foco.includes(v)) draft.foco = draft.foco.filter(x => x !== v);
+      else draft.foco.push(v);
+      ch.classList.toggle('selected');
+    }));
+    return shell(c, { canNext: true }); // opcional
+  }
+
+  /* ------- 2: Nome ------- */
   function stepNome() {
     const c = document.createElement('div');
     c.innerHTML = `

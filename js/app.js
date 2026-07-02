@@ -106,6 +106,12 @@ const App = (() => {
     return wrap;
   }
 
+  const FOCO_LABELS = { pernas:'Pernas e glúteos', bracos:'Braços', peito:'Peito', costas:'Costas', ombros:'Ombros', abdomen:'Abdômen' };
+  function focoLabel(foco) {
+    if (!foco || !foco.length) return 'Equilibrado';
+    return foco.map(f => FOCO_LABELS[f] || f).join(', ');
+  }
+
   function saudacao() {
     const h = new Date().getHours();
     if (h < 12) return 'Bom dia';
@@ -219,6 +225,7 @@ const App = (() => {
           <div class="ex-info">
             <div class="ex-nome">${ex.nome}</div>
             <span class="ex-grp" style="color:${grp.cor}">${grp.label}</span>
+            ${item.foco ? `<span class="foco-badge">★ prioridade</span>` : ''}
             ${trocado ? `<span class="swapped-badge">${Icons.svg('swap')} trocado</span>` : ''}
           </div>
           <button class="ex-swap" data-orig="${origId}" title="Trocar exercício">
@@ -469,6 +476,7 @@ const App = (() => {
         <div class="data-row"><span class="lbl">Nome</span><span class="val">${s.user.nome}</span></div>
         <div class="data-row"><span class="lbl">Objetivo</span><span class="val"><span class="tag ${obj.tag}">${obj.label}</span></span></div>
         <div class="data-row"><span class="lbl">Nível</span><span class="val">${NIVEIS[p.nivel]}</span></div>
+        <div class="data-row"><span class="lbl">Prioridade</span><span class="val">${focoLabel(p.foco)}</span></div>
       </div>
 
       <div class="section-title">Dados corporais</div>

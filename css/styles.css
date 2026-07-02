@@ -551,6 +551,12 @@ body { display: flex; justify-content: center; }
   margin-top: 6px;
 }
 .swapped-badge svg { width: 11px; height: 11px; }
+.foco-badge {
+  display: inline-block; margin-top: 4px; margin-right: 6px;
+  font-size: 10px; font-weight: 800; letter-spacing: .02em;
+  color: var(--brand-2); background: rgba(16,185,129,.12);
+  padding: 2px 8px; border-radius: 999px;
+}
 
 /* Bottom sheet (painel de troca) */
 .sheet-overlay {

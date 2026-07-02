@@ -6,8 +6,8 @@
      - Fotos de exercícios e fontes: cache-first (não mudam) -> offline.
    ========================================================================== */
 
-const SHELL_CACHE = 'fitadapt-shell-v7';
-const RUNTIME_CACHE = 'fitadapt-runtime-v7';
+const SHELL_CACHE = 'fitadapt-shell-v8';
+const RUNTIME_CACHE = 'fitadapt-runtime-v8';
 
 const SHELL = [
   './',

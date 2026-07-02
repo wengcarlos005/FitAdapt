@@ -17,6 +17,21 @@ const Algo = (() => {
     return nivel === 'iniciante' ? 2 : 3;
   }
 
+  /* Áreas de prioridade escolhidas pelo usuário -> grupos musculares */
+  const AREA_GRUPOS = {
+    pernas:  ['gluteos', 'quadriceps', 'posterior'],
+    bracos:  ['biceps', 'triceps'],
+    peito:   ['peito'],
+    costas:  ['costas'],
+    ombros:  ['ombro'],
+    abdomen: ['core'],
+  };
+  function gruposFoco(profile) {
+    const out = [];
+    (profile.foco || []).forEach(a => (AREA_GRUPOS[a] || []).forEach(g => out.push(g)));
+    return out;
+  }
+
   /* Templates de dia: lista de grupos musculares a cobrir (na ordem) */
   const TEMPLATES = {
     fullbodyA: { foco:'Full Body A', grupos:['peito','costas','quadriceps','ombro','core'] },
@@ -86,36 +101,47 @@ const Algo = (() => {
     const usados = new Set();
     let giGlobal = 0; // posição global do grupo (varia a escolha entre dias)
     const rot = (semana - 1) + variante;
+    const foco = gruposFoco(profile); // grupos priorizados pelo usuário
+
+    // Escolhe um exercício do grupo, rotacionando e evitando repetição
+    function escolher(grupo, base) {
+      const cand = candidatos(grupo, profile);
+      if (!cand.length) return null;
+      for (let k = 0; k < cand.length; k++) {
+        const c = cand[(base + k) % cand.length];
+        if (!usados.has(c.id)) { usados.add(c.id); return c; }
+      }
+      const c = cand[base % cand.length]; // pool pequeno: pode repetir
+      usados.add(c.id);
+      return c;
+    }
+    function push(exercicios, ex, prioridade) {
+      const isCore = ex.grupo === 'core';
+      exercicios.push({
+        exId: ex.id,
+        series: isCore ? 3 : params.series,
+        reps: ex.repsFixo || params.reps,
+        descanso: isCore ? 45 : params.descanso,
+        carga: null,
+        foco: !!prioridade,
+      });
+    }
 
     const dias = split.map((key, i) => {
       const tpl = TEMPLATES[key];
       const exercicios = [];
 
       tpl.grupos.forEach(grupo => {
-        const cand = candidatos(grupo, profile);
-        if (!cand.length) return; // sem equipamento p/ esse grupo → pula
-
-        // Rotação: índice que muda por semana/variante e posição,
-        // pulando os já usados nesta ficha (variedade dentro e entre semanas).
-        const base = rot + giGlobal;
-        giGlobal++;
-        let ex = null;
-        for (let k = 0; k < cand.length; k++) {
-          const c = cand[(base + k) % cand.length];
-          if (!usados.has(c.id)) { ex = c; break; }
-        }
-        if (!ex) ex = cand[base % cand.length]; // pool pequeno: pode repetir
-        usados.add(ex.id);
-
-        const isCore = grupo === 'core';
-        exercicios.push({
-          exId: ex.id,
-          series: isCore ? 3 : params.series,
-          reps: ex.repsFixo || params.reps,
-          descanso: isCore ? 45 : params.descanso,
-          carga: null,
-        });
+        const ex = escolher(grupo, rot + (giGlobal++));
+        if (ex) push(exercicios, ex, foco.includes(grupo));
       });
+
+      // Volume EXTRA nas áreas que o usuário quer priorizar (1 por dia, rotacionando)
+      if (foco.length) {
+        const grupoFoco = foco[(rot + i) % foco.length];
+        const ex = escolher(grupoFoco, rot + i);
+        if (ex) push(exercicios, ex, true);
+      }
 
       // Finalizador de cardio para perda de peso / condicionamento
       if (params.cardioFinal) {
