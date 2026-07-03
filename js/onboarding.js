@@ -14,7 +14,8 @@ const Onboarding = (() => {
 
   let draft = {
     nome: '', sexo: '', idade: null, peso: null, altura: null,
-    objetivo: '', foco: [], nivel: '', dias: null, tempo: null,
+    objetivo: '', foco: [], nivel: '',
+    diasSemana: [], horario: '18:00', dias: null, tempo: null,
     local: '', equipamentos: ['peso_corporal'],
   };
 
@@ -201,22 +202,34 @@ const Onboarding = (() => {
     ], 'nivel');
   }
 
-  /* ------- 7: Rotina ------- */
+  /* ------- 7: Agenda (dias específicos + horário + tempo) ------- */
+  const WD = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   function stepRotina() {
     const c = document.createElement('div');
     c.innerHTML = `
-      <div class="onb-q">Sua rotina</div>
-      <div class="onb-sub">Dias por semana e tempo por treino.</div>
-      <div class="field"><label>Dias por semana</label>
-        <div class="chips">${[2,3,4,5,6].map(d => `<div class="chip big ${draft.dias===d?'selected':''}" data-dias="${d}">${d}</div>`).join('')}</div>
+      <div class="onb-q">Sua agenda</div>
+      <div class="onb-sub">Escolha os dias, o horário e a duração do treino.</div>
+      <div class="field"><label>Dias que você treina</label>
+        <div class="week-picker">
+          ${WD.map((d, i) => `<div class="wd ${draft.diasSemana.includes(i) ? 'selected' : ''}" data-wd="${i}">${d}</div>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label>Horário do treino</label>
+        <input class="input" id="fHora" type="time" value="${draft.horario || '18:00'}">
       </div>
       <div class="field"><label>Tempo por treino</label>
         <div class="chips">${[{v:30,t:'30 min'},{v:45,t:'45 min'},{v:60,t:'1h'},{v:90,t:'1h30'}].map(o => `<div class="chip big ${draft.tempo===o.v?'selected':''}" data-tempo="${o.v}">${o.t}</div>`).join('')}</div>
       </div>`;
-    const ok = () => !!(draft.dias && draft.tempo);
-    c.querySelectorAll('[data-dias]').forEach(ch => ch.addEventListener('click', () => {
-      draft.dias = +ch.dataset.dias; c.querySelectorAll('[data-dias]').forEach(x => x.classList.toggle('selected', x===ch)); setNext(ok());
+    const ok = () => draft.diasSemana.length >= 2 && !!draft.tempo;
+    c.querySelectorAll('[data-wd]').forEach(w => w.addEventListener('click', () => {
+      const i = +w.dataset.wd;
+      if (draft.diasSemana.includes(i)) draft.diasSemana = draft.diasSemana.filter(x => x !== i);
+      else draft.diasSemana = [...draft.diasSemana, i].sort((a, b) => a - b);
+      draft.dias = draft.diasSemana.length;
+      w.classList.toggle('selected');
+      setNext(ok());
     }));
+    c.querySelector('#fHora').addEventListener('input', e => { draft.horario = e.target.value; });
     c.querySelectorAll('[data-tempo]').forEach(ch => ch.addEventListener('click', () => {
       draft.tempo = +ch.dataset.tempo; c.querySelectorAll('[data-tempo]').forEach(x => x.classList.toggle('selected', x===ch)); setNext(ok());
     }));

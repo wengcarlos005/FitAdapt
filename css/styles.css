@@ -173,6 +173,27 @@ body { display: flex; justify-content: center; }
   background: #fff; color: var(--brand-2);
 }
 .hero .btn:hover { filter: brightness(.97); }
+/* Hero de dia de descanso (tom mais calmo) */
+.hero.rest {
+  background:
+    radial-gradient(420px 220px at 88% -30%, rgba(255,255,255,.22), transparent 60%),
+    linear-gradient(135deg, #6366f1 0%, #7c6cf0 55%, #8b7bf0 100%);
+  box-shadow: 0 14px 30px rgba(99,102,241,.28);
+}
+.hero.rest .btn { color: #6366f1; }
+
+/* Faixa da agenda semanal */
+.agenda-strip {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  margin-top: 12px;
+}
+.ag-day {
+  text-align: center; padding: 8px 0; border-radius: 10px;
+  font-size: 12px; font-weight: 700; color: var(--text-mut);
+  background: var(--surface); border: 1px solid var(--line);
+}
+.ag-day.on { color: var(--brand-2); background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); }
+.ag-day.today { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 /* Barra de progresso semanal */
 .section-title {
@@ -401,6 +422,16 @@ body { display: flex; justify-content: center; }
 .equip.selected .e-ico { color: var(--brand); }
 .equip-custom { margin-top: 16px; }
 .equip-hint { color: var(--text-mut); font-size: 12px; margin-top: 12px; }
+
+/* Seletor de dias da semana */
+.week-picker { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.wd {
+  padding: 12px 2px; text-align: center;
+  background: var(--surface); border: 2px solid var(--line);
+  border-radius: 12px; color: var(--text-dim);
+  font: 700 12px 'Inter', sans-serif; cursor: pointer; transition: .15s;
+}
+.wd.selected { border-color: var(--brand); background: rgba(16,185,129,.1); color: var(--text); }
 
 /* Rodapé de navegação do onboarding */
 .onb-footer {

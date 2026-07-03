@@ -59,6 +59,13 @@ const App = (() => {
     const feitos = treinosNaSemana();                         // treinos concluídos nesta semana
     const pct = Math.min(100, Math.round((feitos / p.dias) * 100));
     const emAndamento = s.session && s.session.diaIdx === cursor; // retomar?
+
+    // Agenda: hoje é dia de treino? qual o próximo dia agendado?
+    const agenda = p.diasSemana && p.diasSemana.length ? p.diasSemana : null;
+    const dow = new Date().getDay();
+    const treinaHoje = !agenda || agenda.includes(dow) || emAndamento;
+    const prox = agenda ? proximoDiaTreino(agenda, dow) : null;
+
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <div class="greeting">
@@ -71,12 +78,21 @@ const App = (() => {
 
       ${deload ? `<div class="deload-banner">${Icons.svg('repeat')} Semana de recuperação (deload) — cargas reduzidas para recuperar.</div>` : ''}
 
+      ${treinaHoje ? `
       <div class="hero">
         <div class="eyebrow">${emAndamento ? 'Em andamento' : 'Treino de hoje'} · Semana ${semana}</div>
         <h2>${hoje.foco}</h2>
-        <div class="meta"><b>${hoje.exercicios.length}</b> exercícios · <b>${hoje.tempoEstimado}</b> min</div>
+        <div class="meta"><b>${hoje.exercicios.length}</b> exercícios · <b>${hoje.tempoEstimado}</b> min${agenda && p.horario ? ` · ${p.horario}` : ''}</div>
         <button class="btn" id="startBtn">${Icons.svg('play')} ${emAndamento ? 'Continuar treino' : 'Começar treino'}</button>
-      </div>
+      </div>` : `
+      <div class="hero rest">
+        <div class="eyebrow">Descanso · Semana ${semana}</div>
+        <h2>Hoje é dia de descanso</h2>
+        <div class="meta">${prox ? `Próximo treino: <b>${WEEKDAYS[prox.dow]}</b> (${prox.emDias === 1 ? 'amanhã' : 'em ' + prox.emDias + ' dias'})${p.horario ? ' · ' + p.horario : ''}` : ''}</div>
+        <button class="btn" id="startBtn">${Icons.svg('play')} Treinar mesmo assim</button>
+      </div>`}
+
+      ${agenda ? `<div class="agenda-strip">${WEEKDAYS_SHORT.map((d,i)=>`<span class="ag-day ${agenda.includes(i)?'on':''} ${i===dow?'today':''}">${d}</span>`).join('')}</div>` : ''}
 
       <div class="section-title">Progresso semanal</div>
       <div class="card">
@@ -110,6 +126,16 @@ const App = (() => {
   function focoLabel(foco) {
     if (!foco || !foco.length) return 'Equilibrado';
     return foco.map(f => FOCO_LABELS[f] || f).join(', ');
+  }
+
+  const WEEKDAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  const WEEKDAYS_SHORT = ['D','S','T','Q','Q','S','S'];
+  function proximoDiaTreino(agenda, fromDow) {
+    for (let k = 1; k <= 7; k++) {
+      const d = (fromDow + k) % 7;
+      if (agenda.includes(d)) return { dow: d, emDias: k };
+    }
+    return null;
   }
 
   function saudacao() {
@@ -489,9 +515,12 @@ const App = (() => {
 
       <div class="section-title">Rotina</div>
       <div class="card" style="margin-bottom:16px">
-        <div class="data-row"><span class="lbl">Frequência</span><span class="val">${p.dias}x / semana</span></div>
+        <div class="data-row"><span class="lbl">Dias</span><span class="val">${diasLabel(p)}</span></div>
+        <div class="data-row"><span class="lbl">Horário</span><span class="val">${p.horario || '—'}</span></div>
         <div class="data-row"><span class="lbl">Tempo por treino</span><span class="val">${p.tempo} min</span></div>
       </div>
+
+      <button class="btn secondary" id="editBtn" style="margin-bottom:22px">${Icons.svg('sliders')} Editar preferências</button>
 
       <div class="section-title">Equipamentos</div>
       <div class="card" style="margin-bottom:16px">
@@ -507,6 +536,7 @@ const App = (() => {
       <button class="btn secondary" id="resetBtn">Refazer onboarding</button>
       <button class="btn ghost" id="logoutBtn" style="margin-top:10px">Sair da conta</button>
     `;
+    wrap.querySelector('#editBtn').addEventListener('click', openPrefs);
     wrap.querySelector('#resetBtn').addEventListener('click', () => {
       if (confirm('Isso apaga seu perfil e recomeça o onboarding. Continuar?')) {
         Store.reset();
@@ -518,6 +548,92 @@ const App = (() => {
       boot();
     });
     return wrap;
+  }
+
+  function diasLabel(p) {
+    if (p.diasSemana && p.diasSemana.length)
+      return p.diasSemana.map(i => WEEKDAYS_SHORT[i]).join(' · ') + ` (${p.diasSemana.length}x)`;
+    return `${p.dias}x / semana`;
+  }
+
+  /* Editar preferências sem refazer o onboarding */
+  function openPrefs() {
+    const s = Store.get(); const p = s.profile;
+    const objetivos = [
+      { v:'perda_peso', t:'Perder peso' }, { v:'ganho_massa', t:'Ganhar massa' }, { v:'condicionamento', t:'Condicionar' },
+    ];
+    const areas = [
+      { v:'pernas', t:'Pernas e glúteos' }, { v:'bracos', t:'Braços' }, { v:'peito', t:'Peito' },
+      { v:'costas', t:'Costas' }, { v:'ombros', t:'Ombros' }, { v:'abdomen', t:'Abdômen' },
+    ];
+    const d = {
+      objetivo: p.objetivo, foco: [...(p.foco || [])],
+      diasSemana: [...(p.diasSemana || [])], horario: p.horario || '18:00', tempo: p.tempo,
+    };
+
+    const ov = document.createElement('div');
+    ov.className = 'player';
+    ov.innerHTML = `
+      <div class="player-head">
+        <button class="p-close" id="prefClose">${Icons.svg('x')}</button>
+        <div class="p-progress"><span>Editar preferências</span></div>
+      </div>
+      <div class="player-scroll">
+        <div class="section-title">Objetivo</div>
+        <div class="chips">${objetivos.map(o => `<div class="chip big ${d.objetivo===o.v?'selected':''}" data-obj="${o.v}">${o.t}</div>`).join('')}</div>
+
+        <div class="section-title">Prioridade (volume extra)</div>
+        <div class="chips">${areas.map(a => `<div class="chip big ${d.foco.includes(a.v)?'selected':''}" data-foco="${a.v}">${a.t}</div>`).join('')}</div>
+
+        <div class="section-title">Dias que você treina</div>
+        <div class="week-picker">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((w,i)=>`<div class="wd ${d.diasSemana.includes(i)?'selected':''}" data-wd="${i}">${w}</div>`).join('')}</div>
+
+        <div class="section-title">Horário</div>
+        <input class="input" id="prefHora" type="time" value="${d.horario}">
+
+        <div class="section-title">Tempo por treino</div>
+        <div class="chips">${[30,45,60,90].map(v=>`<div class="chip big ${d.tempo===v?'selected':''}" data-tempo="${v}">${v>=60?(v/60)+'h'+(v%60||''):v+' min'}</div>`).join('')}</div>
+      </div>
+      <div class="player-foot"><button class="btn" id="prefSave">Salvar</button></div>`;
+    document.getElementById('app').appendChild(ov);
+
+    const one = (sel, attr, cb) => ov.querySelectorAll(sel).forEach(el => el.addEventListener('click', () => {
+      cb(el); ov.querySelectorAll(sel).forEach(x => x.classList.toggle('selected', x === el));
+    }));
+    one('[data-obj]', 'obj', el => d.objetivo = el.dataset.obj);
+    one('[data-tempo]', 'tempo', el => d.tempo = +el.dataset.tempo);
+    ov.querySelectorAll('[data-foco]').forEach(el => el.addEventListener('click', () => {
+      const v = el.dataset.foco;
+      if (d.foco.includes(v)) d.foco = d.foco.filter(x => x !== v); else d.foco.push(v);
+      el.classList.toggle('selected');
+    }));
+    ov.querySelectorAll('[data-wd]').forEach(el => el.addEventListener('click', () => {
+      const i = +el.dataset.wd;
+      if (d.diasSemana.includes(i)) d.diasSemana = d.diasSemana.filter(x => x !== i);
+      else d.diasSemana = [...d.diasSemana, i].sort((a, b) => a - b);
+      el.classList.toggle('selected');
+    }));
+    ov.querySelector('#prefHora').addEventListener('input', e => d.horario = e.target.value);
+    ov.querySelector('#prefClose').addEventListener('click', () => ov.remove());
+    ov.querySelector('#prefSave').addEventListener('click', () => {
+      if (d.diasSemana.length < 2) { alert('Escolha pelo menos 2 dias de treino.'); return; }
+      const novo = { ...p, objetivo: d.objetivo, foco: d.foco, diasSemana: d.diasSemana, dias: d.diasSemana.length, horario: d.horario, tempo: d.tempo };
+      const estruturalMudou =
+        d.objetivo !== p.objetivo ||
+        d.foco.slice().sort().join() !== (p.foco || []).slice().sort().join() ||
+        d.diasSemana.length !== (p.dias || (p.diasSemana || []).length);
+      const patch = { profile: novo };
+      if (estruturalMudou) {
+        const pl = s.plan;
+        patch.plan = Algo.generate(novo, pl.semana || 1, pl.variante || 0);
+        patch.substitutions = {};
+        patch.session = null;
+        patch.planCursor = 0;
+      }
+      Store.set(patch);
+      ov.remove();
+      go('profile');
+    });
   }
 
   /* --------------------------- Utils ---------------------------- */
