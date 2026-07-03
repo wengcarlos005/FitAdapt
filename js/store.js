@@ -15,6 +15,7 @@ const Store = (() => {
     planCursor: 0,
     logs: [],
     feedbacks: [],
+    pesos: [],         // histórico de peso corporal [{data, peso}]
     streak: 0,
     session: null,     // treino em andamento (para retomar depois)
   });

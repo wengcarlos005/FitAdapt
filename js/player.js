@@ -353,6 +353,11 @@ const Player = (() => {
   function salvarRegistro() {
     const it = item();
     const ex = Algo.byId(Store.resolve(it.exId));
+    // Melhor carga anterior deste exercício (antes de registrar) -> detecção de recorde
+    let recordeAnterior = 0;
+    (Store.get().logs || []).filter(l => l.exId === ex.id)
+      .forEach(l => (l.sets || []).forEach(s => { if ((s.carga || 0) > recordeAnterior) recordeAnterior = s.carga; }));
+
     const rec = { data: new Date().toISOString(), dia: dia.foco, exId: ex.id, nome: ex.nome, sets: [], rpe: overlay._rpe || null };
     if (ex.tipo === 'cardio') {
       const min = overlay.querySelector('#cardioMin')?.value;
@@ -368,6 +373,11 @@ const Player = (() => {
       sessaoLogs.push(rec);
       const logs = Store.get().logs.concat(rec);
       Store.set({ logs });
+      // Novo recorde de carga?
+      const maxAgora = Math.max(0, ...rec.sets.map(s => s.carga || 0));
+      if (recordeAnterior > 0 && maxAgora > recordeAnterior && typeof App !== 'undefined' && App.toast) {
+        App.toast(`Novo recorde: ${maxAgora} kg em ${ex.nome}!`, 'pr');
+      }
     }
   }
 

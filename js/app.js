@@ -28,6 +28,10 @@ const App = (() => {
     if (s.profile && !s.plan) {
       Store.set({ plan: Algo.generate(s.profile) });
     }
+    // Semeia o primeiro registro de peso (baseline do gráfico)
+    if (s.profile && s.profile.peso && (!s.pesos || !s.pesos.length)) {
+      Store.set({ pesos: [{ data: new Date().toISOString(), peso: s.profile.peso }] });
+    }
   }
 
   function go(route) {
@@ -380,17 +384,6 @@ const App = (() => {
       return wrap;
     }
 
-    // Consistência: últimos 7 dias
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
-    const diasSemana = ['D','S','T','Q','Q','S','S'];
-    const treinoDatas = new Set(fbs.map(f => new Date(f.data).toDateString()));
-    let dots = '';
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(hoje); d.setDate(d.getDate() - i);
-      const done = treinoDatas.has(d.toDateString());
-      dots += `<div class="cd-day ${done ? 'on' : ''}"><span>${diasSemana[d.getDay()]}</span><div class="cd-dot">${done ? Icons.svg('check') : ''}</div></div>`;
-    }
-
     // Volume por sessão (últimas 8)
     const volSessoes = fbs.filter(f => f.volume > 0).slice(-8);
     const volChart = volSessoes.length
@@ -428,11 +421,27 @@ const App = (() => {
       cargaHTML = `<p class="mut-note">Conclua um treino para ver sua evolução aqui.</p>`;
     }
 
+    // Estatísticas gerais
+    const totalVol = fbs.reduce((a, f) => a + (f.volume || 0), 0);
+    const totalMin = fbs.reduce((a, f) => a + (f.duracaoMin || 0), 0);
+
     wrap.innerHTML = `
       <div class="greeting"><div><h1>Progresso</h1><p>${fbs.length} treino(s) concluído(s)</p></div><div class="streak-badge">${Icons.svg('flame')} ${s.streak}</div></div>
 
-      <div class="section-title">Consistência (7 dias)</div>
-      <div class="card"><div class="cd-row">${dots}</div></div>
+      <div class="prog-stats">
+        <div class="ps"><b>${fbs.length}</b><span>Treinos</span></div>
+        <div class="ps"><b>${totalMin}</b><span>Minutos</span></div>
+        <div class="ps"><b>${totalVol >= 1000 ? (totalVol/1000).toFixed(1) + 't' : totalVol}</b><span>Volume</span></div>
+      </div>
+
+      <div class="section-title">Calendário</div>
+      <div class="card">${calendarioMes(fbs)}</div>
+
+      <div class="section-title">Peso corporal</div>
+      <div class="card" id="pesoCard">${pesoHTML()}</div>
+
+      <div class="section-title">Recordes pessoais</div>
+      <div class="card">${recordesHTML()}</div>
 
       <div class="section-title">Evolução por exercício</div>
       <div class="card">${cargaHTML}</div>
@@ -440,10 +449,122 @@ const App = (() => {
       <div class="section-title">Volume por treino</div>
       <div class="card">${volChart}</div>
 
+      <div class="section-title">Histórico</div>
+      <div class="hist-list">${historicoHTML(fbs)}</div>
+
       <div class="section-title">Conquistas</div>
       <div class="ach-grid">${achGridHTML()}</div>
     `;
+    wrap.querySelector('#addPeso').addEventListener('click', () => abrirLogPeso());
     return wrap;
+  }
+
+  /* Calendário do mês atual com dias treinados marcados */
+  function calendarioMes(fbs) {
+    const hoje = new Date();
+    const ano = hoje.getFullYear(), mes = hoje.getMonth();
+    const treinos = new Set(fbs.map(f => new Date(f.data).toDateString()));
+    const primeiro = new Date(ano, mes, 1);
+    const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+    const offset = primeiro.getDay(); // 0=dom
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    let cells = ['D','S','T','Q','Q','S','S'].map(d => `<span class="cal-h">${d}</span>`).join('');
+    for (let i = 0; i < offset; i++) cells += `<span class="cal-c empty"></span>`;
+    for (let d = 1; d <= diasNoMes; d++) {
+      const dt = new Date(ano, mes, d);
+      const on = treinos.has(dt.toDateString());
+      const isHoje = dt.toDateString() === hoje.toDateString();
+      cells += `<span class="cal-c ${on ? 'on' : ''} ${isHoje ? 'today' : ''}">${d}</span>`;
+    }
+    return `<div class="cal-title">${meses[mes]} ${ano}</div><div class="cal-grid">${cells}</div>`;
+  }
+
+  /* Peso corporal: valor atual + variação + mini-gráfico */
+  function pesoHTML() {
+    const pesos = Store.get().pesos || [];
+    if (!pesos.length) {
+      return `<div class="peso-empty"><span class="mut-note">Registre seu peso para acompanhar a evolução.</span>
+        <button class="btn secondary" id="addPeso" style="margin-top:12px">Registrar peso</button></div>`;
+    }
+    const vals = pesos.map(p => p.peso);
+    const atual = vals[vals.length - 1];
+    const delta = +(atual - vals[0]).toFixed(1);
+    return `
+      <div class="peso-head">
+        <div><div class="peso-val">${atual}<small> kg</small></div>
+        <div class="peso-delta ${delta < 0 ? 'down' : delta > 0 ? 'up' : ''}">${delta === 0 ? 'sem variação' : (delta > 0 ? '+' : '') + delta + ' kg desde o início'}</div></div>
+        <button class="btn secondary" id="addPeso" style="width:auto;padding:10px 14px">Atualizar</button>
+      </div>
+      ${vals.length > 1 ? sparkline(vals) : ''}`;
+  }
+
+  function abrirLogPeso() {
+    const atual = (Store.get().profile || {}).peso || 70;
+    const ov = document.createElement('div');
+    ov.className = 'sheet-overlay';
+    ov.innerHTML = `
+      <div class="sheet" style="text-align:center">
+        <div class="sheet-grip"></div>
+        <h3 style="text-align:left">Registrar peso</h3>
+        <div class="big-input" style="margin:24px 0">
+          <input class="input xl" id="pesoIn" type="number" inputmode="decimal" value="${atual}"><span class="xl-unit">kg</span>
+        </div>
+        <button class="btn" id="pesoSave">Salvar</button>
+      </div>`;
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.querySelector('#pesoSave').addEventListener('click', () => {
+      const v = parseFloat(ov.querySelector('#pesoIn').value);
+      if (!(v >= 30 && v <= 300)) { alert('Peso entre 30 e 300 kg.'); return; }
+      const pesos = (Store.get().pesos || []).concat({ data: new Date().toISOString(), peso: v });
+      Store.set({ pesos, profile: { ...Store.get().profile, peso: v } });
+      ov.remove();
+      toast('Peso registrado', 'ok');
+      go('progress');
+    });
+    document.getElementById('app').appendChild(ov);
+    setTimeout(() => ov.querySelector('#pesoIn').focus(), 60);
+  }
+
+  /* Recordes pessoais (melhor carga por exercício, ordenado por 1RM estimado) */
+  function calcRecordes() {
+    const logs = Store.get().logs || [];
+    const best = {};
+    logs.forEach(r => (r.sets || []).forEach(st => {
+      if (st.carga) {
+        const e1rm = st.carga * (1 + (st.reps || 1) / 30); // Epley
+        if (!best[r.exId] || e1rm > best[r.exId].e1rm) best[r.exId] = { carga: st.carga, reps: st.reps, e1rm, nome: r.nome };
+      }
+    }));
+    return Object.entries(best).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.e1rm - a.e1rm);
+  }
+  function recordesHTML() {
+    const recs = calcRecordes().slice(0, 5);
+    if (!recs.length) return `<p class="mut-note">Registre cargas para bater recordes. 💪</p>`.replace(' 💪', '');
+    return recs.map(r => `
+      <div class="rec-row">
+        <div class="rec-medal">${Icons.svg('trophy')}</div>
+        <div class="rec-info"><div class="rec-nome">${r.nome}</div><div class="rec-sub">${r.carga} kg × ${r.reps || 1}</div></div>
+        <div class="rec-1rm">${Math.round(r.e1rm)}<small>kg 1RM</small></div>
+      </div>`).join('');
+  }
+
+  /* Histórico de sessões (mais recentes primeiro) */
+  function historicoHTML(fbs) {
+    if (!fbs.length) return `<p class="mut-note">Seus treinos concluídos aparecem aqui.</p>`;
+    const dif = { facil: 'Fácil', perfeito: 'Perfeito', dificil: 'Difícil' };
+    return fbs.slice().reverse().slice(0, 12).map(f => {
+      const d = new Date(f.data);
+      const data = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+      return `
+        <div class="hist-item">
+          <div class="hist-date"><b>${data.split(' ')[0]}</b><span>${(data.split(' ')[1] || '').replace('.', '')}</span></div>
+          <div class="hist-info">
+            <div class="hist-foco">${f.dia}</div>
+            <div class="hist-meta">${f.duracaoMin} min${f.volume ? ' · ' + f.volume.toLocaleString('pt-BR') + ' kg' : ''}${f.dificuldade ? ' · ' + (dif[f.dificuldade] || '') : ''}</div>
+          </div>
+          <div class="hist-check">${Icons.svg('check')}</div>
+        </div>`;
+    }).join('');
   }
 
   /* Grade de medalhas (ganhas x bloqueadas) */
@@ -688,7 +809,19 @@ const App = (() => {
     boot();
   }
 
-  return { init, go, boot };
+  /* Aviso flutuante (toast) — feedback rápido de UX */
+  function toast(msg, tipo = 'info') {
+    const shell = document.querySelector('.app-shell');
+    const ic = tipo === 'pr' ? Icons.svg('trophy') : tipo === 'ok' ? Icons.svg('check') : Icons.svg('flame');
+    const t = document.createElement('div');
+    t.className = `toast toast-${tipo}`;
+    t.innerHTML = `<span class="toast-ico">${ic}</span><span>${msg}</span>`;
+    shell.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 320); }, tipo === 'pr' ? 3400 : 2400);
+  }
+
+  return { init, go, boot, toast };
 })();
 
 document.addEventListener('DOMContentLoaded', App.init);
