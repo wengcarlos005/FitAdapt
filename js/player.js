@@ -161,11 +161,16 @@ const Player = (() => {
       </div>
 
       <div class="player-scroll">
-        <!-- Topo: equipamento usado no exercício -->
+        <!-- Topo: foto real do exercício (ícone do equipamento é o fallback) -->
         <div class="p-hero" style="background:linear-gradient(135deg, ${hexA(cor,.9)}, ${hexA(cor,.55)})">
           <div class="p-hero-equip">${Icons.equip(equipPrincipal(ex))}</div>
-          <span class="p-hero-eqname">${nomeEquip(equipPrincipal(ex))}</span>
+          ${media ? `
+            <img class="p-hero-bg" src="${media[0]}" alt="" aria-hidden="true" onerror="this.remove()">
+            <img class="p-hero-img" src="${media[0]}" alt="${ex.nome}" onerror="this.remove()">
+            ${media.length > 1 ? `<img class="p-hero-img p-foto-b" id="pFotoB" src="${media[1]}" alt="" aria-hidden="true" onerror="this.remove()">` : ''}
+            <span class="p-hero-scrim"></span>` : ''}
           <span class="p-hero-grp">${grp.label}</span>
+          <span class="p-hero-eqname">${Icons.equip(equipPrincipal(ex))} ${nomeEquip(equipPrincipal(ex))}</span>
         </div>
 
         <h2 class="p-title">${ex.nome}</h2>
@@ -180,16 +185,8 @@ const Player = (() => {
             <div class="stat-pill"><b>${it.descanso}s</b><span>Descanso</span></div>
           </div>`}
 
-        <!-- Passo a passo com a demonstração animada (gif) ao lado -->
+        <!-- Passo a passo (a demonstração animada está no topo) -->
         <div class="section-title">Como executar</div>
-        ${media && media.length > 1 ? `
-        <div class="p-demo-inline">
-          <div class="p-demo-frame">
-            <img class="p-demo-img" src="${media[0]}" alt="">
-            <img class="p-demo-img p-foto-b" id="pFotoB" src="${media[1]}" alt="" aria-hidden="true">
-            <span class="p-demo-tag">${Icons.svg('play')} demonstração</span>
-          </div>
-        </div>` : ''}
         <ol class="p-steps">
           ${ex.instr.map(s => `<li>${s}</li>`).join('')}
         </ol>
