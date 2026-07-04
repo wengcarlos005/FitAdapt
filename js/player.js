@@ -18,6 +18,7 @@ const Player = (() => {
   let inicio = 0;         // timestamp de início da sessão
   let sessaoLogs = [];    // registros desta sessão (p/ resumo/volume)
   let completed = new Set(); // índices de exercícios concluídos
+  let navLayer = null;    // camada do botão voltar (fecha/salva o player)
 
   function start(diaObj, diaIndex, exitCb) {
     dia = diaObj;
@@ -33,6 +34,8 @@ const Player = (() => {
       idx = 0; sessaoLogs = []; completed = new Set(); inicio = Date.now();
     }
     tabbar.hidden = true;
+    // Registra o player no botão voltar do sistema (fecha salvando o andamento).
+    if (!navLayer) navLayer = Nav.push(onBack);
     renderEx();
   }
 
@@ -41,12 +44,28 @@ const Player = (() => {
     Store.set({ session: { diaIdx, idx, logs: sessaoLogs, done: [...completed], inicio } });
   }
 
-  function close() {
+  function cleanup() {
     if (restInt) clearInterval(restInt);
     if (fotoInt) clearInterval(fotoInt);
     if (overlay) overlay.remove();
     tabbar.hidden = false;
-    onExit && onExit();
+  }
+
+  // Voltar (hardware ou botão X) durante o treino: salva o andamento e sai.
+  function onBack() {
+    navLayer = null;
+    persistSession();
+    cleanup();
+    const cb = onExit; onExit = null;
+    cb && cb();
+  }
+
+  // Sair após CONCLUIR o treino (sem persistir sessão — ela já foi limpa).
+  function close() {
+    cleanup();
+    if (navLayer) { Nav.drop(navLayer); navLayer = null; }
+    const cb = onExit; onExit = null;
+    cb && cb();
   }
 
   function item() { return dia.exercicios[idx]; }
@@ -207,8 +226,7 @@ const Player = (() => {
     }
 
     overlay.querySelector('#pClose').addEventListener('click', () => {
-      persistSession();   // guarda o andamento para retomar depois
-      close();
+      Nav.back(navLayer);   // fecha salvando o andamento (mesmo que o voltar)
     });
     overlay.querySelector('#pSwap').addEventListener('click', () => openSwapInPlayer(it.exId));
     overlay.querySelector('#pNext').addEventListener('click', () => nextEx(ultimo));
@@ -284,11 +302,12 @@ const Player = (() => {
         </ol>
         <button class="btn secondary" id="demoClose" style="margin-top:16px">Fechar</button>
       </div>`;
-    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
-    m.querySelector('#demoClose').addEventListener('click', () => { if (demoInt) clearInterval(demoInt); m.remove(); });
+    let demoInt = null;
+    const demoLayer = Nav.push(() => { if (demoInt) clearInterval(demoInt); m.remove(); });
+    m.addEventListener('click', e => { if (e.target === m) Nav.back(demoLayer); });
+    m.querySelector('#demoClose').addEventListener('click', () => Nav.back(demoLayer));
 
     // anima as duas posições no modal por crossfade
-    let demoInt = null;
     if (media && media.length > 1) {
       const b = m.querySelector('#demoImgB');
       let on = false;
@@ -328,11 +347,12 @@ const Player = (() => {
           </div>`;
         }).join('')}
       </div>`;
-    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    const swapLayer = Nav.push(() => m.remove());
+    m.addEventListener('click', e => { if (e.target === m) Nav.back(swapLayer); });
     m.querySelectorAll('.alt').forEach(a => a.addEventListener('click', () => {
       const novo = a.dataset.id;
       if (novo === origId) Store.clearSub(origId); else Store.setSub(origId, novo);
-      m.remove();
+      Nav.back(swapLayer);
       overlay.remove();
       renderEx(); // re-renderiza com o exercício trocado
     }));
@@ -394,6 +414,13 @@ const Player = (() => {
     stopRest();
     if (fotoInt) clearInterval(fotoInt);
     overlay.remove();
+
+    // Treino concluído: o voltar agora leva à home (não re-salva a sessão).
+    if (navLayer) { Nav.drop(navLayer); navLayer = null; }
+    navLayer = Nav.push(() => {
+      navLayer = null; cleanup();
+      const cb = onExit; onExit = null; cb && cb();
+    });
 
     const dur = Math.max(1, Math.round((Date.now() - inicio) / 60000));
     const vol = volumeSessao();
@@ -459,8 +486,9 @@ const Player = (() => {
 
     overlay.querySelector('#fbNext').addEventListener('click', () => {
       salvar();
-      overlay.remove();
-      // inicia o próximo dia direto
+      if (navLayer) { Nav.drop(navLayer); navLayer = null; }
+      cleanup();
+      // inicia o próximo dia direto (start registra uma nova camada de voltar)
       start(Store.get().plan.dias[proxIdx], proxIdx, onExit);
     });
     overlay.querySelector('#fbHome').addEventListener('click', () => {

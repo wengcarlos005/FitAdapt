@@ -953,6 +953,8 @@ body { display: flex; justify-content: center; }
   font: 700 15px 'Inter', sans-serif; cursor: pointer; transition: .15s;
 }
 .time-opt.sel { border-color: var(--brand); background: rgba(34,211,154,.1); color: var(--text); }
+.time-preview { margin-top: 14px; font-size: 13px; color: var(--text-dim); text-align: center; }
+.time-preview b { color: var(--text); }
 
 /* Grade de conquistas */
 .ach-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }

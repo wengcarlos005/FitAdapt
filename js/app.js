@@ -34,7 +34,8 @@ const App = (() => {
     }
   }
 
-  function go(route) {
+  function go(route, viaPop) {
+    const prev = current;
     current = route;
     tabbar.hidden = false;
     el.innerHTML = '';
@@ -43,6 +44,10 @@ const App = (() => {
     el.appendChild(view);
     el.scrollTop = 0;
     updateTabs();
+    // Botão voltar do sistema: registra a aba anterior para poder retornar.
+    if (!viaPop && prev && prev !== route) {
+      Nav.push(() => go(prev, true));
+    }
   }
 
   function updateTabs() {
@@ -309,9 +314,10 @@ const App = (() => {
       </div>
     `;
 
+    const layer = Nav.push(() => overlay.remove());
     // Fecha ao clicar fora do painel
     overlay.addEventListener('click', e => {
-      if (e.target === overlay) overlay.remove();
+      if (e.target === overlay) Nav.back(layer);
     });
 
     // Seleção de alternativa
@@ -320,7 +326,7 @@ const App = (() => {
         const novoId = altEl.dataset.id;
         if (novoId === origId) Store.clearSub(origId); // voltou ao original
         else Store.setSub(origId, novoId);
-        overlay.remove();
+        Nav.back(layer);
         go('plan'); // re-renderiza a ficha com a troca aplicada
       });
     });
@@ -335,6 +341,15 @@ const App = (() => {
     const cheio = dia.tempoEstimado;
     const opts = [15, 30, 45, 60, 90];
 
+    // Prévia do treino ajustado ao tempo escolhido (mostra que muda de verdade)
+    const previa = min => {
+      const aj = Algo.ajustarTempo(dia, min, s.profile);
+      const n = aj.exercicios.length;
+      const dif = n - dia.exercicios.length;
+      const tag = dif > 0 ? `+${dif}` : dif < 0 ? `${dif}` : '=';
+      return { n, min: aj.tempoEstimado, tag };
+    };
+
     const overlay = document.createElement('div');
     overlay.className = 'sheet-overlay';
     overlay.innerHTML = `
@@ -348,19 +363,30 @@ const App = (() => {
             return `<button class="time-opt ${o === padrao ? 'sel' : ''}" data-min="${o}">${lbl}</button>`;
           }).join('')}
         </div>
+        <p class="time-preview" id="timePreview"></p>
         <button class="btn" id="timeGo" style="margin-top:16px">Começar</button>
       </div>`;
 
+    const previewEl = overlay.querySelector('#timePreview');
+    const pintaPreview = min => {
+      const p = previa(min);
+      previewEl.innerHTML = `Seu treino: <b>${p.n} exercícios</b> · ~${p.min} min`;
+    };
+
     let escolha = padrao;
+    pintaPreview(escolha);
     overlay.querySelectorAll('.time-opt').forEach(b =>
       b.addEventListener('click', () => {
         escolha = +b.dataset.min;
         overlay.querySelectorAll('.time-opt').forEach(x => x.classList.toggle('sel', x === b));
+        pintaPreview(escolha);
       }));
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    const layer = Nav.push(() => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) Nav.back(layer); });
     overlay.querySelector('#timeGo').addEventListener('click', () => {
-      overlay.remove();
-      const ajustado = Algo.ajustarTempo(dia, escolha);
+      Nav.back(layer);  // fecha o painel de tempo
+      const ajustado = Algo.ajustarTempo(dia, escolha, s.profile);
       Player.start(ajustado, idx, exitCb);
     });
     document.getElementById('app').appendChild(overlay);
@@ -511,13 +537,14 @@ const App = (() => {
         </div>
         <button class="btn" id="pesoSave">Salvar</button>
       </div>`;
-    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    const layer = Nav.push(() => ov.remove());
+    ov.addEventListener('click', e => { if (e.target === ov) Nav.back(layer); });
     ov.querySelector('#pesoSave').addEventListener('click', () => {
       const v = parseFloat(ov.querySelector('#pesoIn').value);
       if (!(v >= 30 && v <= 300)) { alert('Peso entre 30 e 300 kg.'); return; }
       const pesos = (Store.get().pesos || []).concat({ data: new Date().toISOString(), peso: v });
       Store.set({ pesos, profile: { ...Store.get().profile, peso: v } });
-      ov.remove();
+      Nav.back(layer);
       toast('Peso registrado', 'ok');
       go('progress');
     });
@@ -735,7 +762,8 @@ const App = (() => {
       el.classList.toggle('selected');
     }));
     ov.querySelector('#prefHora').addEventListener('input', e => d.horario = e.target.value);
-    ov.querySelector('#prefClose').addEventListener('click', () => ov.remove());
+    const layer = Nav.push(() => ov.remove());
+    ov.querySelector('#prefClose').addEventListener('click', () => Nav.back(layer));
     ov.querySelector('#prefSave').addEventListener('click', () => {
       if (d.diasSemana.length < 2) { alert('Escolha pelo menos 2 dias de treino.'); return; }
       const novo = { ...p, objetivo: d.objetivo, foco: d.foco, diasSemana: d.diasSemana, dias: d.diasSemana.length, horario: d.horario, tempo: d.tempo };
@@ -752,7 +780,7 @@ const App = (() => {
         patch.planCursor = 0;
       }
       Store.set(patch);
-      ov.remove();
+      Nav.back(layer);
       go('profile');
     });
   }
@@ -784,6 +812,7 @@ const App = (() => {
 
   /* --------------------------- Bootstrap -------------------------- */
   function boot() {
+    Nav.reset();                 // limpa camadas de navegação (troca de conta)
     tabbar.hidden = true;
     if (!Auth.session()) {
       Auth.start(afterLogin);          // não logado -> tela de login/cadastro
@@ -804,6 +833,8 @@ const App = (() => {
   }
 
   function init() {
+    // Faz o botão voltar do celular navegar dentro do app (PWA).
+    Nav.init({ onRootBack: () => toast('Pressione voltar de novo para sair') });
     tabbar.querySelectorAll('.tab').forEach(tab =>
       tab.addEventListener('click', () => go(tab.dataset.route)));
     boot();

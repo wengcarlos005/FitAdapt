@@ -250,13 +250,25 @@ const Algo = (() => {
   }
 
   /* ==================================================================
-     AJUSTE DE TEMPO — encurta/alonga o treino p/ o tempo disponível
+     AJUSTE DE TEMPO — encurta OU alonga o treino p/ o tempo disponível
+     `profile` é opcional: quando informado, permite ADICIONAR exercícios
+     ao alongar (sem ele, alonga apenas somando séries).
      ================================================================== */
-  function ajustarTempo(dia, minutos) {
+  function ajustarTempo(dia, minutos, profile) {
     const ex = dia.exercicios.map(e => ({ ...e }));
     const t = () => estimarTempo(ex);
-    if (t() <= minutos) return { ...dia, exercicios: ex, tempoEstimado: t(), ajustadoPara: minutos };
 
+    if (t() > minutos) {
+      encurtar(ex, minutos, t);
+    } else if (t() < minutos - 4) {
+      alongar(ex, minutos, t, profile);
+    }
+
+    return { ...dia, exercicios: ex, tempoEstimado: t(), ajustadoPara: minutos };
+  }
+
+  /* Encurta: tira isolados, reduz séries, e por fim remove do fim. */
+  function encurtar(ex, minutos, t) {
     // 1) remove isolados (do fim), preservando compostos e core
     for (let i = ex.length - 1; i >= 0 && t() > minutos; i--) {
       const b = byId(ex[i].exId);
@@ -266,8 +278,66 @@ const Algo = (() => {
     if (t() > minutos) ex.forEach(e => { if (e.series > 2) e.series = 2; });
     // 3) ainda longo: remove do fim, mantendo ao menos 3 exercícios
     while (t() > minutos && ex.length > 3) ex.pop();
+  }
 
-    return { ...dia, exercicios: ex, tempoEstimado: t(), ajustadoPara: minutos };
+  /* Custo (min) de uma série a mais, dado o descanso. */
+  function custoSerie(descanso) { return (35 + (descanso || 0)) / 60; }
+
+  /* Alonga: primeiro soma séries aos principais, depois adiciona exercícios
+     acessórios dos grupos já presentes no dia (se houver perfil). */
+  function alongar(ex, minutos, t, profile) {
+    const params = (profile && OBJ_PARAMS[profile.objetivo]) || OBJ_PARAMS.condicionamento;
+    const maxSeries = profile && profile.objetivo === 'ganho_massa' ? 5 : 4;
+
+    // 1) soma séries — compostos primeiro, em rodízio, respeitando o teto
+    let progrediu = true;
+    while (progrediu && t() < minutos - 1) {
+      progrediu = false;
+      const alvos = ex.filter(e => {
+        const b = byId(e.exId);
+        return b && b.tipo !== 'cardio' && b.grupo !== 'core' && e.series < maxSeries;
+      }).sort((a, b) => {
+        const ba = byId(a.exId), bb = byId(b.exId);
+        return (bb.tipo === 'composto') - (ba.tipo === 'composto');
+      });
+      for (const e of alvos) {
+        if (t() + custoSerie(e.descanso) > minutos) continue;
+        e.series++;
+        progrediu = true;
+        if (t() >= minutos - 1) break;
+      }
+    }
+
+    // 2) sobrou tempo -> adiciona exercícios acessórios (precisa do perfil)
+    if (!profile) return;
+    const usados = new Set(ex.map(e => e.exId));
+    const grupos = [...new Set(
+      ex.map(e => (byId(e.exId) || {}).grupo).filter(g => g && g !== 'cardio')
+    )];
+    if (!grupos.length) return;
+
+    const cardioIdx = ex.findIndex(e => (byId(e.exId) || {}).grupo === 'cardio');
+    let gi = 0, tentativas = 0, semAdicao = 0;
+    // margem de ~6 min: só adiciona exercício se realmente couber
+    while (t() < minutos - 6 && semAdicao < grupos.length) {
+      const grupo = grupos[gi % grupos.length]; gi++; tentativas++;
+      const nov = candidatos(grupo, profile).find(c => !usados.has(c.id));
+      if (!nov) { semAdicao++; if (tentativas > grupos.length * 3) break; continue; }
+      semAdicao = 0;
+      const isCore = nov.grupo === 'core';
+      const item = {
+        exId: nov.id,
+        series: isCore ? 3 : params.series,
+        reps: nov.repsFixo || params.reps,
+        descanso: isCore ? 45 : params.descanso,
+        carga: null,
+        extra: true, // marca como adicionado pelo ajuste de tempo
+      };
+      // insere antes do cardio final, se houver
+      const idx = ex.findIndex(e => (byId(e.exId) || {}).grupo === 'cardio');
+      if (idx === -1) ex.push(item); else ex.splice(idx, 0, item);
+      usados.add(nov.id);
+    }
   }
 
   return { generate, alternativas, byId, OBJ_PARAMS, sugerirCarga, ajustarTempo };
